@@ -12,6 +12,30 @@ int vivos = 0;
 
 vector<int> supply,demand;
 
+void init(int n, int g){
+    N = n;
+    G = g;
+    vivos = N;
+
+    for(int i = 0; i < G; i++){
+        supply.pb(0);
+        demand.pb(0);
+
+    }
+}
+
+void reset(){
+     for (int t = 0; t < G; t++){
+        supply[t] = 0;
+        demand[t] = 0;
+    }
+    total_produced = 0;
+    total_exchanged = 0;
+    total_money = 0;
+    
+    return;
+}
+
 class human{
     public:
 
@@ -62,88 +86,36 @@ class state{
         fees = taxas;
     }
 
-    void tax();
-    void print_money();
-    void buy();
-    void donate();
-    void lend();
-    void invest();
-};
-
-void state::tax(){
-    int taxation;
-    for (int i = 0; i < N; i++){
-        taxation = humano[i].money*fees;
-        money += taxation;
-        humano[i].money -= taxation;
-
+    void tax(){
+        int taxation;
+        for (int i = 0; i < N; i++){
+            taxation = humano[i].money*fees;
+            money += taxation;
+            humano[i].money -= taxation;
+        }
+        return;
     }
-    return;
-}
-
-void state::print_money(){
-
-
-
-
-    return;
-}
-
-void state::buy(){
-
-
-
-    return;
-}
-
-void state::donate(){
-    for (int i = 0; i < N;i++){
-        
-
-    }
-    return;
-}
-
-void state::lend(){
-
-
-
-
-    return;
-}
-
-void state::invest(){
-
-
-
-
-
-    return;
-}
-
-void init(int n, int g){
-    N = n;
-    G = g;
-    vivos = N;
-
-    for(int i = 0; i < G; i++){
-        supply.pb(0);
-        demand.pb(0);
-
-    }
-}
-
-void reset(){
-     for (int t = 0; t < G; t++){
-        supply[t] = 0;
-        demand[t] = 0;
-    }
-    total_produced = 0;
-    total_exchanged = 0;
-    total_money = 0;
+    void print_money(){
     
-    return;
-}
+        return;
+    }
+    void buy(){
+    
+        return;
+    }
+    void donate(){
+    
+        return;
+    }
+    void lend(){
+    
+        return;
+    }
+    void invest(){
+
+        return;
+    }
+};
 
 void human::checkin(){
     income = 0;
