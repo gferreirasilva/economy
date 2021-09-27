@@ -1,13 +1,14 @@
 #include "header.h"
-#include "human.cpp"
+#include "rules_and_ai.cpp"
 
-int main(){
-    init(2,2);
+int main()
+{
+    init(2, 2);
 
-    vector<int> needs = {1,1};
-    vector<int> prio = {0,1};
+    vector<int> needs = {1, 1};
+    vector<int> prio = {0, 1};
     vector<float> price = {2.0, 2.0};
-    vector<int> inv = {0,0};
+    vector<int> inv = {0, 0};
     int produtividade = 10;
     int dinheiro = 50;
     int hunger = 10;
@@ -22,24 +23,21 @@ int main(){
     gov = new_gov;
 
     // for (int i = 0; i < N; i++){
- 
+
     //     humano.pb(
     //         human(i, dinheiro, i%2, sway, produtividade, needs, prio, price, inv)
     //     );
     // }
     humano.pb(
-        human(last_id, dinheiro, hunger, 0, sway, produtividade, needs, prio, {3,1}, inv)
-    );
+        human(last_id, dinheiro, hunger, 0, sway, produtividade, needs, prio, {3, 1}, inv));
     humano.pb(
-        human(last_id, dinheiro, hunger, 1, sway, produtividade, needs, prio, {1,3}, inv)
-    );
-
+        human(last_id, dinheiro, hunger, 1, sway, produtividade, needs, prio, {1, 3}, inv));
 
     int r = 1;
     int R = 20;
 
-
-    while (R >= r){
+    while (R >= r)
+    {
         cout << "Start of loop " << r << "\n";
 
         prod_total = att_prod(prod_total, prod_rate);
@@ -49,18 +47,18 @@ int main(){
         all("checkout");
         log();
 
-        if (vivos == 0){
+        if (vivos == 0)
+        {
             cout << "End of Loop at " << r << "\n";
             break;
-
         }
 
         r++;
     }
-    for (int i = 0; i < G; i++){
+    for (int i = 0; i < G; i++)
+    {
         // cout << humano[0].price[i] << "    ";
         // cout << humano[1].price[i] << "\n";
-
     }
 
     return 0;
