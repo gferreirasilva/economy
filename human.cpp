@@ -41,6 +41,7 @@ class human{
 
     vector<int> needs, prio, inv, nec;
     vector<float> price;
+    vector<float> max_price;
 
     int life = 1;
     int starvation = 0;
@@ -59,6 +60,7 @@ class human{
             needs.pb(a[i]);
             prio.pb(b[i]);
             price.pb(c[i]);
+            max_price.pb(c[i]);
             inv.pb(d[i]);
             nec.pb(0);
         }
@@ -69,7 +71,7 @@ class human{
     void checkout();
     void seek_trade();
     void produce();
-    void request_aid();
+    void request_aid(int cash);
 };
 
 vector<human> humano;
@@ -95,27 +97,51 @@ class state{
         }
         return;
     }
-    void print_money(){
-    
+    void print_money(int cash){
+        //To Dev
+        //Conditions to analyze: Will this money encourage production in valuable sectors of the economy?
+        //For now all requests for generating money are being accepted.
+        money += cash;
         return;
     }
     void buy(){
-    
+        //To Dev
         return;
     }
-    void donate(){
-    
-        return;
+    int donate(human asker, int grant){
+        //To Dev
+        //Conditions to analyze: How much money do we have? How much money does the human have? What job does the human have?
+        //For now all requests to donate money are being accepted.
+        if (money >= grant){
+            money -= grant;
+            return grant;
+
+        }
+        if (money <= grant){
+            //To Dev
+            //Accordingly to the print_money() function, every time the state doesn't have enough money, it will just print more
+            print_money(grant);
+            money -= grant;
+            return grant;
+
+            }
+            return 0;
+        
+        return 0;
     }
+
     void lend(){
-    
+        //To Dev
         return;
     }
     void invest(){
-
+        //To Dev
         return;
     }
+
 };
+
+state gov(0, 0);
 
 void human::checkin(){
     income = 0;
@@ -140,8 +166,10 @@ void human::checkout(){
     for (int q = 0; q < G; q++){
 
         if (-nec[q] > starvation){
-            request_aid();
+            request_aid(max_price[q]);
+        
         }
+
         if (-nec[q] > starvation){
         life = 0;
         vivos--;
@@ -154,37 +182,45 @@ void human::checkout(){
 return;
 }
 
-void city_growth(){
-    //if ()
 
-    return;
-}
-
-void trade(int id_buyer, int id_seller, int produto, int quantidade){
+void trade(int id_buyer, int id_seller, int quantidade, int produto){
     human buyer = humano[id_buyer];
     human seller = humano[id_seller];
+    int dif = seller.price[produto] - buyer.price[produto];
 
+
+    if (seller.nec[produto] >= 0){
+        cout << seller.nec[produto] << " " << buyer.nec[produto] << "\n";
+        //To Dev
+        //Early interpretation of inflation and loss of consumption power
+        //Maybe it happens when you don't produce it too?
+        if (seller.job == produto){
+            seller.price[produto] += dif;
+            humano[id_seller] = seller;
+        }
+        return;
+    }
+    cout << "entrei no trade \n";
     quantidade = min(quantidade, -buyer.nec[produto]);
 
 
     int price = seller.price[produto];
 
-    if (seller.price[produto] > buyer.price[produto]){
+    if (price > buyer.price[produto]){
 
-        int dif = seller.price[produto] - buyer.price[produto];
         if (-buyer.nec[produto] >= buyer.starvation){
-            price = seller.price[produto];
-            buyer.price[produto] += dif*buyer.sway;
-            
-            
-        }
-        else {
+            //Halfing the buyer sway to compensate the fact that he is obligated to buy at that price.
+            buyer.price[produto] += dif*buyer.sway*0.5;
 
+        }
+
+        else {
+            buyer.max_price[produto] = seller.price[produto];
             buyer.price[produto] += dif*buyer.sway;
             seller.price[produto] -= dif*buyer.sway;
             humano[id_buyer] = buyer;
             humano[id_seller] = seller;
-
+            
             return;
         }
     }
@@ -205,6 +241,8 @@ void trade(int id_buyer, int id_seller, int produto, int quantidade){
 };
 
 void human::produce(){
+    //To Dev
+    //Simples production, not capable of handling complex materials.
     inv[job] += prod;
     total_produced += price[job]*prod;
 
@@ -212,7 +250,7 @@ void human::produce(){
 }
 
 void human::seek_trade(){
-    
+
     for (int item = 0; item < G; item++){
         int it = prio[item];
 
@@ -222,15 +260,21 @@ void human::seek_trade(){
 
         for (int k = 0; k < N; k++){
             if (id == k || humano[k].life == 0){continue;}
+            trade(id, k, humano[k].nec[it], it);
 
-            if (humano[k].nec[it] > 0){
-                trade(id, k, it, humano[k].nec[it]);
-            }
         }
     }
 }
 
+void human::request_aid(int grant){
+    int value = gov.donate(humano[id], grant);
+    money += value;
+    return;
+}
+
 float att_prod(float prod_total, float prod_rate){
+    //To Dev
+    //Linear Progession of Productivity and not capable of handling complex materials
     prod_total += prod_rate;
     if (prod_total >= 1){
         int atual = prod_total;

@@ -8,15 +8,18 @@ int main(){
     vector<int> prio = {0,1};
     vector<float> price = {2.0, 2.0};
     vector<int> inv = {0,0};
-    int produtividade = 2;
-    int dinheiro = 10;
+    int produtividade = 10;
+    int dinheiro = 50;
     int hunger = 10;
     float sway = 0.5;
     float prod_total = 0;
     float prod_rate = 0.2;
 
+    int state_money;
+    int tax;
 
-    state Brazil(100, 0.1);
+    state new_gov(state_money, tax);
+    gov = new_gov;
 
     // for (int i = 0; i < N; i++){
  
