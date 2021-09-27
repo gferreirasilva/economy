@@ -39,7 +39,7 @@ void reset(){
 class human{
     public:
 
-    vector<int> needs, prio, inv, nec;
+    vector<int> needs, prio, inv, dis;
     vector<float> price;
     vector<float> max_price;
 
@@ -62,7 +62,7 @@ class human{
             price.pb(c[i]);
             max_price.pb(c[i]);
             inv.pb(d[i]);
-            nec.pb(0);
+            dis.pb(0);
         }
         last_id++;
     }
@@ -149,13 +149,13 @@ void human::checkin(){
     income += price[job]*prod;
 
     for (int q = 0; q < G; q++){
-        nec[q] += inv[q] - needs[q];
+        dis[q] += inv[q] - needs[q];
         
-        if (nec[q] <= 0){
-            demand[q] -= nec[q];
+        if (dis[q] <= 0){
+            demand[q] -= dis[q];
         }
-        if (nec[q] > 0){
-            supply[q] += nec[q];
+        if (dis[q] > 0){
+            supply[q] += dis[q];
         }
 
     }
@@ -165,12 +165,12 @@ return;
 void human::checkout(){
     for (int q = 0; q < G; q++){
 
-        if (-nec[q] > starvation){
+        if (-dis[q] > starvation){
             request_aid(max_price[q]);
         
         }
 
-        if (-nec[q] > starvation){
+        if (-dis[q] > starvation){
         life = 0;
         vivos--;
         cout << id << " morreu\n";
@@ -189,8 +189,7 @@ void trade(int id_buyer, int id_seller, int quantidade, int produto){
     int dif = seller.price[produto] - buyer.price[produto];
 
 
-    if (seller.nec[produto] >= 0){
-        cout << seller.nec[produto] << " " << buyer.nec[produto] << "\n";
+    if (seller.dis[produto] <= 0){
         //To Dev
         //Early interpretation of inflation and loss of consumption power
         //Maybe it happens when you don't produce it too?
@@ -201,14 +200,14 @@ void trade(int id_buyer, int id_seller, int quantidade, int produto){
         return;
     }
     cout << "entrei no trade \n";
-    quantidade = min(quantidade, -buyer.nec[produto]);
+    quantidade = min(quantidade, -buyer.dis[produto]);
 
 
     int price = seller.price[produto];
 
     if (price > buyer.price[produto]){
 
-        if (-buyer.nec[produto] >= buyer.starvation){
+        if (-buyer.dis[produto] >= buyer.starvation){
             //Halfing the buyer sway to compensate the fact that he is obligated to buy at that price.
             buyer.price[produto] += dif*buyer.sway*0.5;
 
@@ -231,8 +230,8 @@ void trade(int id_buyer, int id_seller, int quantidade, int produto){
     buyer.money -= price;
     seller.money += price;
 
-    buyer.nec[produto] += quantidade;
-    seller.nec[produto] -= quantidade;
+    buyer.dis[produto] += quantidade;
+    seller.dis[produto] -= quantidade;
 
     total_exchanged += quantidade*price;
 
@@ -254,13 +253,13 @@ void human::seek_trade(){
     for (int item = 0; item < G; item++){
         int it = prio[item];
 
-        if (nec[it] > 0){
+        if (dis[it] > 0){
             continue;
         }
 
         for (int k = 0; k < N; k++){
             if (id == k || humano[k].life == 0){continue;}
-            trade(id, k, humano[k].nec[it], it);
+            trade(id, k, humano[k].dis[it], it);
 
         }
     }
