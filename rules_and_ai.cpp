@@ -8,7 +8,7 @@ int total_exchanged = 0;
 int total_money = 0;
 int total_produced = 0;
 int last_id = 0;
-int vivos = 0;
+int alive = 0;
 
 vector<int> supply, demand;
 
@@ -16,7 +16,7 @@ void init(int n, int g)
 {
     N = n;
     G = g;
-    vivos = N;
+    alive = N;
 
     for (int i = 0; i < G; i++)
     {
@@ -42,31 +42,32 @@ void reset()
 class human
 {
 public:
-    vector<int> needs, prio, inv, dis;
+    vector<int> needs, priority, inventory, dis;
     vector<float> price;
     vector<float> max_price;
 
     int life = 1;
     int starvation = 0;
 
-    int id, prod, job;
-    float money, sway, income;
+    int id, productivity, job;
+    float money, sensitivity, income;
 
-    human(int rg, float dinheiro, int fome, int producao, float deslize, int produtividade, vector<int> a, vector<int> b, vector<float> c, vector<int> d)
+    human(int identification, float initial_money, int hungry_limit, int initial_job, float initial_sensitivity, int initial_productivity, vector<int> setup_needs, vector<int> setup_priority, vector<float> initial_prices, vector<int> initial_inventory)
     {
-        id = rg;
-        money = dinheiro;
-        prod = produtividade;
-        job = producao;
-        sway = deslize;
+        id = identification;
+        money = initial_money;
+        starvation = hungry_limit;
+        job = initial_job;
+        sensitivity = initial_sensitivity;
+        productivity = initial_productivity;
 
         for (int i = 0; i < G; i++)
         {
-            needs.pb(a[i]);
-            prio.pb(b[i]);
-            price.pb(c[i]);
-            max_price.pb(c[i]);
-            inv.pb(d[i]);
+            needs.pb(setup_needs[i]);
+            priority.pb(setup_priority[i]);
+            price.pb(initial_prices[i]);
+            max_price.pb(initial_prices[i]);
+            inventory.pb(initial_inventory[i]);
             dis.pb(0);
         }
         last_id++;
@@ -75,7 +76,7 @@ public:
     void checkin();
     void checkout();
     void seek_trade();
-    void produce();
+    void production();
     void request_aid(int cash);
 };
 
@@ -108,7 +109,7 @@ public:
     void print_money(int cash)
     {
         //To Dev
-        //Conditions to analyze: Will this money encourage production in valuable sectors of the economy?
+        //Conditions to analyze: Will this money encourage productivityuction in valuable sectors of the economy?
         //For now all requests for generating money are being accepted.
         money += cash;
         return;
@@ -146,7 +147,7 @@ public:
         //To Dev
         return;
     }
-    void invest()
+    void inventoryest()
     {
         //To Dev
         return;
@@ -159,11 +160,11 @@ void human::checkin()
 {
     income = 0;
     total_money += money;
-    income += price[job] * prod;
+    income += price[job] * productivity;
 
     for (int q = 0; q < G; q++)
     {
-        dis[q] += inv[q] - needs[q];
+        dis[q] += inventory[q] - needs[q];
 
         if (dis[q] <= 0)
         {
@@ -181,61 +182,64 @@ void human::checkout()
 {
     for (int q = 0; q < G; q++)
     {
-
         if (-dis[q] > starvation)
         {
             request_aid(max_price[q]);
+            if (max_price[q] <= money)
+            {
+                seek_trade();
+            }
         }
 
         if (-dis[q] > starvation)
         {
             life = 0;
-            vivos--;
-            cout << id << " morreu\n";
+            alive--;
+            cout << id << " died\n";
             return;
         }
+        inventory[q] -= needs[q];
     }
 
     return;
 }
 
-void trade(int id_buyer, int id_seller, int quantidade, int produto)
+void trade(int id_buyer, int id_seller, int quantity, int product)
 {
     human buyer = humano[id_buyer];
     human seller = humano[id_seller];
-    int dif = seller.price[produto] - buyer.price[produto];
+    int dif = seller.price[product] - buyer.price[product];
 
-    if (seller.dis[produto] <= 0)
+    if (seller.dis[product] <= 0)
     {
         //To Dev
         //Early interpretation of inflation and loss of consumption power
-        //Maybe it happens when you don't produce it too?
-        if (seller.job == produto)
+        //Maybe it happens when you don't productivityuce it too?
+        if (seller.job == product)
         {
-            seller.price[produto] += dif;
+            seller.price[product] += dif * seller.sensitivity;
             humano[id_seller] = seller;
         }
         return;
     }
-    cout << "entrei no trade \n";
-    quantidade = min(quantidade, -buyer.dis[produto]);
+    quantity = min(quantity, -buyer.dis[product]);
 
-    int price = seller.price[produto];
+    int price = seller.price[product];
 
-    if (price > buyer.price[produto])
+    if (price > buyer.price[product])
     {
 
-        if (-buyer.dis[produto] >= buyer.starvation)
+        if (-buyer.dis[product] >= buyer.starvation)
         {
-            //Halfing the buyer sway to compensate the fact that he is obligated to buy at that price.
-            buyer.price[produto] += dif * buyer.sway * 0.5;
+            //Halfing the buyer sensitivity to compensate the fact that he is obligated to buy at that price.
+            buyer.price[product] += dif * buyer.sensitivity * 0.5;
         }
 
         else
         {
-            buyer.max_price[produto] = seller.price[produto];
-            buyer.price[produto] += dif * buyer.sway;
-            seller.price[produto] -= dif * buyer.sway;
+            buyer.max_price[product] = seller.price[product];
+            buyer.price[product] += dif * buyer.sensitivity;
+            seller.price[product] -= dif * buyer.sensitivity;
             humano[id_buyer] = buyer;
             humano[id_seller] = seller;
 
@@ -243,27 +247,27 @@ void trade(int id_buyer, int id_seller, int quantidade, int produto)
         }
     }
 
-    buyer.inv[produto] += quantidade;
-    seller.inv[produto] -= quantidade;
+    buyer.inventory[product] += quantity;
+    seller.inventory[product] -= quantity;
 
     buyer.money -= price;
     seller.money += price;
 
-    buyer.dis[produto] += quantidade;
-    seller.dis[produto] -= quantidade;
+    buyer.dis[product] += quantity;
+    seller.dis[product] -= quantity;
 
-    total_exchanged += quantidade * price;
+    total_exchanged += quantity * price;
 
     humano[id_buyer] = buyer;
     humano[id_seller] = seller;
 };
 
-void human::produce()
+void human::production()
 {
     //To Dev
-    //Simples production, not capable of handling complex materials.
-    inv[job] += prod;
-    total_produced += price[job] * prod;
+    //Simples productivityuction, not capable of handling complex materials.
+    inventory[job] += productivity;
+    total_produced += price[job] * productivity;
 
     return;
 }
@@ -273,7 +277,7 @@ void human::seek_trade()
 
     for (int item = 0; item < G; item++)
     {
-        int it = prio[item];
+        int it = priority[item];
 
         if (dis[it] > 0)
         {
@@ -298,37 +302,37 @@ void human::request_aid(int grant)
     return;
 }
 
-float att_prod(float prod_total, float prod_rate)
+float update_productivity(float productivity_total, float productivity_rate)
 {
     //To Dev
-    //Linear Progession of Productivity and not capable of handling complex materials
-    prod_total += prod_rate;
-    if (prod_total >= 1)
+    //Linear Progession of productivity and not capable of handling complex materials
+    productivity_total += productivity_rate;
+    if (productivity_total >= 1)
     {
-        int atual = prod_total;
-        prod_total = 0;
+        int atual = productivity_total;
+        productivity_total = 0;
 
         for (int i = 0; i < N; i++)
         {
-            humano[i].prod += atual;
+            humano[i].productivity += atual;
         }
         return 0;
     }
-    return prod_total;
+    return productivity_total;
 }
 
 void log()
 {
     for (int i = 0; i < G; i++)
     {
-        cout << "Produto: " << i;
-        cout << " Demand: " << demand[i];
-        cout << " Supply: " << supply[i] << "\n";
+        cout << "Product: " << i << " ";
+        cout << "Demand: " << demand[i] << " ";
+        cout << "Supply: " << supply[i] << "\n";
     }
     cout << "Total Produced: " << total_produced << "\n";
     cout << "Total Exchanged: " << total_exchanged << "\n";
     cout << "Total Money: " << total_money << "\n";
-    if (vivos == 0)
+    if (alive == 0)
     {
         cout << "Everyone is dead! \n";
         return;
@@ -363,13 +367,13 @@ void all(string identifier)
         }
         return;
     }
-    if (identifier == "produce")
+    if (identifier == "production")
     {
         for (int i = 0; i < N && humano[i].life == 1; i++)
         {
             if (humano[i].life == 1)
             {
-                humano[i].produce();
+                humano[i].production();
             }
         }
         return;

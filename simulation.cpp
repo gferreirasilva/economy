@@ -11,10 +11,10 @@ int main()
     vector<int> inv = {0, 0};
     int produtividade = 10;
     int dinheiro = 50;
-    int hunger = 10;
+    int hunger = 0;
     float sway = 0.5;
     float prod_total = 0;
-    float prod_rate = 0.2;
+    float prod_rate = 0.05;
 
     int state_money;
     int tax;
@@ -34,20 +34,20 @@ int main()
         human(last_id, dinheiro, hunger, 1, sway, produtividade, needs, prio, {1, 3}, inv));
 
     int r = 1;
-    int R = 20;
+    int R = 10;
 
     while (R >= r)
     {
         cout << "Start of loop " << r << "\n";
 
-        prod_total = att_prod(prod_total, prod_rate);
-        all("produce");
+        prod_total = update_productivity(prod_total, prod_rate);
+        all("production");
         all("checkin");
         all("seek_trade");
         all("checkout");
         log();
 
-        if (vivos == 0)
+        if (alive == 0)
         {
             cout << "End of Loop at " << r << "\n";
             break;
