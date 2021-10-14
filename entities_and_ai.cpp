@@ -291,9 +291,9 @@ void human::production()
     //To Dev
     //Simple productivity, not capable of handling complex materials.
     total_production += productivity;
-    while (total_production >= products[job].time_cost)
+    while (total_production >= products[job].production_cost)
     {
-        total_production -= products[job].time_cost;
+        total_production -= products[job].production_cost;
         inventory[job] += products[job].result;
         total_produced++;
     }
@@ -310,7 +310,7 @@ void human::update_productivity()
 
     productivity = min(
         products[job].max_productivity,
-        productivity + products[job].base_productivity * products[job].productivity_rate);
+        productivity * products[job].productivity_rate * productivity_rate);
     return;
 }
 
