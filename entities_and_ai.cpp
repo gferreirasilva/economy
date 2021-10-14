@@ -1,4 +1,5 @@
 #include "header.h"
+#include "things.cpp"
 
 typedef pair<int, int> pii;
 
@@ -10,12 +11,16 @@ int total_produced = 0;
 int last_id = 0;
 int alive = 0;
 
+int max_productivity;
+
 vector<int> supply, demand;
 
-void init(int n, int g)
+void init(int n, int g, int p, int p_max)
 {
     N = n;
     G = g;
+
+    max_productivity = p_max;
     alive = N;
 
     for (int i = 0; i < G; i++)
@@ -49,12 +54,24 @@ public:
     int life = 1;
     int starvation = 0;
 
-    int id, productivity, job;
+    int id, job, productivity, productivity_rate;
+    int total_production = 0;
     float money, sensitivity, income;
 
-    human(int identification, float initial_money, int hungry_limit, int initial_job, float initial_sensitivity, int initial_productivity, vector<int> setup_needs, vector<int> setup_priority, vector<float> initial_prices, vector<int> initial_inventory)
+    human(
+        int identification,
+        float initial_money,
+        int hungry_limit,
+        int initial_job,
+        float initial_sensitivity,
+        int initial_productivity,
+        vector<int> setup_needs,
+        vector<int> setup_priority,
+        vector<float> initial_prices,
+        vector<int> initial_inventory)
     {
         id = identification;
+        last_id++;
         money = initial_money;
         starvation = hungry_limit;
         job = initial_job;
@@ -77,6 +94,8 @@ public:
     void checkout();
     void seek_trade();
     void production();
+    void update_productivity();
+    void change_job();
     void request_aid(int cash);
 };
 
@@ -98,12 +117,14 @@ public:
     void tax()
     {
         int taxation;
+        int initial_money = money;
         for (int i = 0; i < N; i++)
         {
             taxation = humano[i].money * fees;
             money += taxation;
             humano[i].money -= taxation;
         }
+        cout << money - initial_money << " was taxed";
         return;
     }
     void print_money(int cash)
@@ -112,6 +133,7 @@ public:
         //Conditions to analyze: Will this money encourage productivityuction in valuable sectors of the economy?
         //For now all requests for generating money are being accepted.
         money += cash;
+        cout << "Printed " << cash << "money";
         return;
     }
     void buy()
@@ -147,7 +169,7 @@ public:
         //To Dev
         return;
     }
-    void inventoryest()
+    void invest()
     {
         //To Dev
         return;
@@ -231,13 +253,15 @@ void trade(int id_buyer, int id_seller, int quantity, int product)
 
         if (-buyer.dis[product] >= buyer.starvation)
         {
-            //Halfing the buyer sensitivity to compensate the fact that he is obligated to buy at that price.
+            // People very likely to buy something, at thatever the
+            // price currently is, are more likely to change their price
+            // when they are obglited to buy.
             buyer.price[product] += dif * buyer.sensitivity * 0.5;
         }
 
         else
         {
-            buyer.max_price[product] = seller.price[product];
+            buyer.max_price[product] = max(buyer.max_price[product], seller.price[product]);
             buyer.price[product] += dif * buyer.sensitivity;
             seller.price[product] -= dif * buyer.sensitivity;
             humano[id_buyer] = buyer;
@@ -265,16 +289,38 @@ void trade(int id_buyer, int id_seller, int quantity, int product)
 void human::production()
 {
     //To Dev
-    //Simples productivityuction, not capable of handling complex materials.
-    inventory[job] += productivity;
+    //Simple productivity, not capable of handling complex materials.
+    total_production += productivity;
+    while (total_production >= products[job].time_cost)
+    {
+        total_production -= products[job].time_cost;
+        inventory[job] += products[job].result;
+        total_produced++;
+    }
     total_produced += price[job] * productivity;
+    update_productivity();
+    return;
+}
 
+void human::update_productivity()
+{
+    // To Dev
+    // Linear Progression of productivity is implemented.
+    // Implement logarithmic?
+
+    productivity = min(
+        products[job].max_productivity,
+        productivity + products[job].base_productivity * products[job].productivity_rate);
     return;
 }
 
 void human::seek_trade()
 {
-
+    // Code defining when the AI will decide to buy
+    // different things. The human AI currently prioritizes
+    // thing that are in a setup priority, and doesn't evaluete
+    // if the priority makes sense or if it's benefical.
+    // To Dev
     for (int item = 0; item < G; item++)
     {
         int it = priority[item];
@@ -300,25 +346,6 @@ void human::request_aid(int grant)
     int value = gov.donate(humano[id], grant);
     money += value;
     return;
-}
-
-float update_productivity(float productivity_total, float productivity_rate)
-{
-    //To Dev
-    //Linear Progession of productivity and not capable of handling complex materials
-    productivity_total += productivity_rate;
-    if (productivity_total >= 1)
-    {
-        int atual = productivity_total;
-        productivity_total = 0;
-
-        for (int i = 0; i < N; i++)
-        {
-            humano[i].productivity += atual;
-        }
-        return 0;
-    }
-    return productivity_total;
 }
 
 void log()
