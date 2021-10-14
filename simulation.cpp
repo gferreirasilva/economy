@@ -1,38 +1,41 @@
 #include "header.h"
-#include "rules_and_ai.cpp"
+#include "entities_and_ai.cpp"
 
 int main()
 {
-    init(2, 2);
 
-    vector<int> needs = {1, 1};
-    vector<int> prio = {0, 1};
-    vector<float> price = {2.0, 2.0};
-    vector<int> inv = {0, 0};
-    int produtividade = 10;
-    int dinheiro = 50;
-    int hunger = 0;
-    float sway = 0.5;
-    float prod_total = 0;
-    float prod_rate = 0.05;
+    vector<int> generic_needs = {1, 1};
+    vector<int> generic_priority = {0, 1};
+    vector<float> generic_prices = {2.0, 2.0};
+    vector<int> generic_inventory = {0, 0};
+    int generic_productivity = 10;
+    int generic_money = 50;
+    int generic_hunger = 0;
+    float generic_sensitivity = 0.5;
+    float generic_total_prod = 0;
 
-    int state_money;
-    int tax;
+    float rate_prod = 0.05;
+    float max_prod = 1.2;
 
-    state new_gov(state_money, tax);
-    gov = new_gov;
+    int state_money = 10;
+    float tax = 0.05;
+    state gov(state_money, tax);
 
-    // for (int i = 0; i < N; i++){
+    int setup_people, setup_goods;
+    setup_people = 2;
+    setup_goods = 2;
+    init(setup_people, setup_goods, rate_prod, max_prod);
 
-    //     humano.pb(
-    //         human(i, dinheiro, i%2, sway, produtividade, needs, prio, price, inv)
-    //     );
-    // }
-    humano.pb(
-        human(last_id, dinheiro, hunger, 0, sway, produtividade, needs, prio, {3, 1}, inv));
-    humano.pb(
-        human(last_id, dinheiro, hunger, 1, sway, produtividade, needs, prio, {1, 3}, inv));
-
+    for (int i = 0; i < setup_people; i++)
+    {
+        humano.pb(
+            human(last_id, generic_money, generic_hunger, 0, generic_sensitivity, generic_productivity, generic_needs, generic_priority, {3, 1}, generic_inventory));
+    }
+    for (int i = 0; i < setup_goods; i++)
+    {
+        products.pb(
+            product(20, 1, 1, 1.0, 10, 20, 0.1, 30, {0, 0}));
+    }
     int r = 1;
     int R = 10;
 
@@ -40,7 +43,6 @@ int main()
     {
         cout << "Start of loop " << r << "\n";
 
-        prod_total = update_productivity(prod_total, prod_rate);
         all("production");
         all("checkin");
         all("seek_trade");
