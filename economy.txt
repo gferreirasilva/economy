@@ -1,9 +1,8 @@
-1. make complex materials (they would have cost of production, people necessary to produce and limit of workers per task)
-2. make and implement jobs, separating them from the products itself and allowing complex jobs to be created, like scientists, bureaucrats or capitalists.
-3. make markets
-4. implement infraestructure and market acess, also implement availability of products.
-5. implement all functionalities of banks
-6. implement interactions between banks and states
-7. make corporations (aglomerates administrated by capitalists that have multiple workers in different sectors, making both the salary and productivity increase)
-8. implement immigration
-9. implement a way to banks and states to go bankrupt instead of going abandoned for eternity
+1. make and implement jobs, separating them from the products itself and allowing complex jobs to be created, like scientists, bureaucrats or capitalists.
+2. make markets
+3. implement infraestructure and market acess, also implement availability of products.
+4. implement all functionalities of banks
+5. implement interactions between banks and states
+6. make corporations (aglomerates administrated by capitalists that have multiple workers in different sectors, making both the salary and productivity increase)
+7. implement immigration
+8. implement a way to banks and states to go bankrupt instead of going abandoned for eternity
