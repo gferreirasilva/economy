@@ -8,6 +8,7 @@ int main()
     vector<int> generic_priority = {0, 1};
     vector<float> generic_prices = {2.0, 2.0};
     vector<int> generic_inventory = {0, 0};
+    vector<int> generic_security = {3, 3};
     int generic_money = 50;
     int generic_hunger = 2;
     float generic_sensitivity = 0.5;
@@ -30,7 +31,7 @@ int main()
 
     for (int i = 0; i < setup_people; i++)
     {
-        human_kind.pb(
+        humankind.pb(
             human(
                 generic_money,
                 generic_hunger,
@@ -40,7 +41,8 @@ int main()
                 generic_needs,
                 {3, 1},
                 generic_priority,
-                generic_inventory));
+                generic_inventory,
+                generic_security));
     }
 
     int r = 1;

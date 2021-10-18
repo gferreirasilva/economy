@@ -53,14 +53,14 @@ void reset()
 class human
 {
 public:
-    vector<int> needs, priority, inventory, dis;
-    vector<float> price;
-    vector<float> max_price;
+    vector<int> needs, priority, inventory, dis, security;
 
-    int life;
-    int starvation;
+    vector<float> price, max_price, min_price;
+    vector<bool> trade_sucess;
 
     product job = default_job;
+    int life, starvation, hunger;
+
     int id, productivity, productivity_rate;
     int total_production;
     float money, sensitivity, income;
@@ -71,10 +71,11 @@ public:
         int initial_job_id,
         float initial_sensitivity,
         float initial_productivity_rate,
-        vector<int> setup_needs,
+        vector<int> initial_needs,
         vector<float> initial_prices,
         vector<int> setup_priority = goods_zero,
-        vector<int> initial_inventory = goods_zero)
+        vector<int> initial_inventory = goods_zero,
+        vector<int> initial_security = goods_zero)
     {
         id = human_id;
         human_id++;
@@ -87,11 +88,17 @@ public:
 
         for (int i = 0; i < G; i++)
         {
-            needs.pb(setup_needs[i]);
+            needs.pb(initial_needs[i]);
             priority.pb(setup_priority[i]);
+
             price.pb(initial_prices[i]);
-            max_price.pb(initial_prices[i]);
+            max_price.pb(price[i]);
+            min_price.pb(price[i]);
+            trade_sucess.pb(false);
+
             inventory.pb(initial_inventory[i]);
+            security.pb(max(initial_security[i], initial_needs[i]));
+            // Security has to be at least needs.
             dis.pb(0);
         }
         life = 1;
@@ -103,11 +110,12 @@ public:
     void seek_trade();
     void production();
     void update_productivity();
+    void update_prices();
     void change_job();
     void request_aid(int cash);
 };
 
-vector<human> human_kind;
+vector<human> humankind;
 
 class state
 {
@@ -128,20 +136,21 @@ public:
         int initial_money = money;
         for (int i = 0; i < N; i++)
         {
-            taxation = human_kind[i].money * fees;
+            taxation = humankind[i].money * fees;
             money += taxation;
-            human_kind[i].money -= taxation;
+            humankind[i].money -= taxation;
         }
         cout << money - initial_money << " was taxed";
         return;
     }
     void print_money(int cash)
     {
-        //To Dev
-        //Conditions to analyze: Will this money encourage productivityuction in valuable sectors of the economy?
-        //For now all requests for generating money are being accepted.
+        // To Dev
+        // Conditions to analyze: Will this money encourage productivity
+        // in valuable sectors of the economy?
+        // For now all requests for generating money are being accepted.
         money += cash;
-        //cout << "Printed " << cash << " money \n";
+        cout << "Printed " << cash << " money \n";
         return;
     }
     void buy()
@@ -188,13 +197,12 @@ state gov(0, 0);
 
 void human::checkin()
 {
-    income = 0;
-    income += price[job.id] * productivity;
 
     for (int q = 0; q < G; q++)
     {
-        dis[q] += inventory[q] - needs[q];
+        dis[q] = inventory[q] - security[q];
 
+        // Preparing log
         if (dis[q] <= 0)
         {
             demand[q] -= dis[q];
@@ -209,9 +217,10 @@ void human::checkin()
 };
 void human::checkout()
 {
+    update_prices();
     for (int q = 0; q < G; q++)
     {
-        if (-dis[q] > starvation)
+        if (inventory[q] - needs[q] > starvation)
         {
             request_aid(max_price[q]);
             if (max_price[q] <= money)
@@ -258,7 +267,7 @@ void human::production()
         }
         total_production -= job.production_cost;
         inventory[job.id] += job.result;
-        total_produced += job.result;
+        total_produced += price[job.id] * job.result;
     }
 
     update_productivity();
@@ -279,25 +288,30 @@ void human::update_productivity()
 
 void trade(int id_buyer, int id_seller, int quantity, int good)
 {
-    human buyer = human_kind[id_buyer];
-    human seller = human_kind[id_seller];
+    human buyer = humankind[id_buyer];
+    human seller = humankind[id_seller];
     int dif = seller.price[good] - buyer.price[good];
 
     if (seller.dis[good] <= 0)
     {
-        //To Dev
-        //Early interpretation of inflation and loss of consumption power
-        //Maybe it happens when you don't productivityuce it too?
+        // To Dev
+        // Change everything here to "adjust prices", which will happen at checkout
+        // when people decide if they got what they wanted or not, base on max an
+        // min prices they searched.
+
+        // Early interpretation of inflation and loss of consumption power.
+        // Maybe it happens when you don't produce it too?
         if (seller.job.id == good)
         {
-            if (seller.price[good] == 0){
+            if (seller.price[good] == 0)
+            {
                 seller.price[good] = 1;
                 // Make a better min price, based on price of production
                 // This makes sense, as if a buyer can
             }
             seller.price[good] += seller.price[good] * seller.sensitivity * 0.25;
-            // How much it changes is totally arbitrary.
-            human_kind[id_seller] = seller;
+            // How much it changes is totally arbitrary fow now.
+            humankind[id_seller] = seller;
         }
         return;
     }
@@ -321,8 +335,8 @@ void trade(int id_buyer, int id_seller, int quantity, int good)
             buyer.max_price[good] = max(buyer.max_price[good], seller.price[good]);
             buyer.price[good] += dif * buyer.sensitivity;
             seller.price[good] -= dif * buyer.sensitivity;
-            human_kind[id_buyer] = buyer;
-            human_kind[id_seller] = seller;
+            humankind[id_buyer] = buyer;
+            humankind[id_seller] = seller;
 
             return;
         }
@@ -330,17 +344,21 @@ void trade(int id_buyer, int id_seller, int quantity, int good)
 
     buyer.inventory[good] += quantity;
     buyer.dis[good] += quantity;
+
     seller.inventory[good] -= quantity;
     seller.dis[good] -= quantity;
+    demand[good] -= quantity;
+    supply[good] -= quantity;
+    cout << "today we traded\n";
 
     buyer.money -= price;
     seller.money += price;
 
     total_exchanged += quantity * price;
 
-    
-    human_kind[id_buyer] = buyer;
-    human_kind[id_seller] = seller;
+    humankind[id_buyer] = buyer;
+    humankind[id_seller] = seller;
+    return;
 };
 
 void human::seek_trade()
@@ -363,18 +381,32 @@ void human::seek_trade()
 
         for (int k = 0; k < N; k++)
         {
-            if (id == k || human_kind[k].life == 0)
+            if (id == k || humankind[k].life == 0)
             {
                 continue;
             }
-            trade(id, k, human_kind[k].dis[good], good);
+            trade(id, k, humankind[k].dis[good], good);
         }
     }
+}
+void human::update_prices()
+{
+    for (int goods = 0; goods < G; goods++)
+    {
+        if (trade_sucess[goods])
+        {
+            continue;
+        }
+        if (price[goods] > min_price[goods])
+        {
+        }
+    }
+    return;
 }
 
 void human::request_aid(int grant)
 {
-    int value = gov.donate(human_kind[id], grant);
+    int value = gov.donate(humankind[id], grant);
     money += value;
     return;
 }
@@ -407,42 +439,42 @@ void all(string identifier)
     {
         for (int i = 0; i < N; i++)
         {
-            if (human_kind[i].life == 1)
+            if (humankind[i].life == 1)
             {
-                human_kind[i].checkin();
+                humankind[i].checkin();
             }
         }
         return;
     }
     if (identifier == "checkout")
     {
-        for (int i = 0; i < N && human_kind[i].life == 1; i++)
+        for (int i = 0; i < N && humankind[i].life == 1; i++)
         {
-            if (human_kind[i].life == 1)
+            if (humankind[i].life == 1)
             {
-                human_kind[i].checkout();
+                humankind[i].checkout();
             }
         }
         return;
     }
     if (identifier == "production")
     {
-        for (int i = 0; i < N && human_kind[i].life == 1; i++)
+        for (int i = 0; i < N && humankind[i].life == 1; i++)
         {
-            if (human_kind[i].life == 1)
+            if (humankind[i].life == 1)
             {
-                human_kind[i].production();
+                humankind[i].production();
             }
         }
         return;
     }
     if (identifier == "seek_trade")
     {
-        for (int i = 0; i < N && human_kind[i].life == 1; i++)
+        for (int i = 0; i < N && humankind[i].life == 1; i++)
         {
-            if (human_kind[i].life == 1)
+            if (humankind[i].life == 1)
             {
-                human_kind[i].seek_trade();
+                humankind[i].seek_trade();
             }
         }
         return;
