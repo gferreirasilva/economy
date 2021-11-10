@@ -124,7 +124,7 @@ public:
     int money;
     float fees;
 
-    state(int dinheiro, float taxas)
+    state(int dinheiro = 100, float taxas = 0)
     {
         money = dinheiro;
         fees = taxas;
@@ -168,7 +168,7 @@ public:
             money -= grant;
             return grant;
         }
-        if (money <= grant)
+        if (money < grant)
         {
             //To Dev
             //Accordingly to the print_money() function, every time the state doesn't have enough money, it will just print more
@@ -193,7 +193,7 @@ public:
     }
 };
 
-state gov(0, 0);
+state gov;
 
 void human::checkin()
 {
@@ -203,7 +203,7 @@ void human::checkin()
         dis[q] = inventory[q] - security[q];
 
         // Preparing log
-        if (dis[q] <= 0)
+        if (dis[q] < 0)
         {
             demand[q] -= dis[q];
         }
@@ -251,7 +251,6 @@ void human::checkout()
 
 void human::production()
 {
-
     total_production += productivity;
     while (total_production >= job.production_cost)
     {
@@ -260,7 +259,7 @@ void human::production()
         {
             if (job.materials_needed[i] > inventory[i])
             {
-                cout << inventory[i] << " " << job.materials_needed[i] << " alooooo \n";
+                cout << inventory[i] << " " << job.materials_needed[i] << " alo? \n";
                 total_production -= productivity;
                 return;
             }
@@ -292,6 +291,12 @@ void trade(int id_buyer, int id_seller, int quantity, int good)
     human seller = humankind[id_seller];
     int dif = seller.price[good] - buyer.price[good];
 
+    //Adjusting min and max price of both seller and buyer.
+    seller.max_price[good] = max(seller.max_price[good], buyer.price[good]);
+    seller.min_price[good] = max(seller.min_price[good], buyer.price[good]);
+    buyer.max_price[good = max(buyer.max_price[good], seller.price[good])];
+    buyer.min_price[good] = max(buyer.min_price[good], seller.price[good]);
+
     if (seller.dis[good] <= 0)
     {
         // To Dev
@@ -307,12 +312,14 @@ void trade(int id_buyer, int id_seller, int quantity, int good)
             {
                 seller.price[good] = 1;
                 // Make a better min price, based on price of production
-                // This makes sense, as if a buyer can
+                // This "price of production" may be based on what he needs to survive
             }
             seller.price[good] += seller.price[good] * seller.sensitivity * 0.25;
-            // How much it changes is totally arbitrary fow now.
-            humankind[id_seller] = seller;
+            // How much the price changes if the seller doesn't have enough
+            // money is totally arbitrary fow now.
         }
+
+        humankind[id_seller] = seller;
         return;
     }
     quantity = min(quantity, seller.dis[good]);
@@ -347,9 +354,9 @@ void trade(int id_buyer, int id_seller, int quantity, int good)
 
     seller.inventory[good] -= quantity;
     seller.dis[good] -= quantity;
+
     demand[good] -= quantity;
     supply[good] -= quantity;
-    cout << "today we traded\n";
 
     buyer.money -= price;
     seller.money += price;
@@ -374,7 +381,7 @@ void human::seek_trade()
     {
         int good = priority[item];
 
-        if (dis[good] > 0)
+        if (dis[good] >= 0)
         {
             continue;
         }
@@ -385,7 +392,7 @@ void human::seek_trade()
             {
                 continue;
             }
-            trade(id, k, humankind[k].dis[good], good);
+            trade(id, k, -dis[good], good);
         }
     }
 }
@@ -395,10 +402,12 @@ void human::update_prices()
     {
         if (trade_sucess[goods])
         {
+            price[goods] += sensitivity * (-price[goods] + max_price[goods]);
             continue;
         }
         if (price[goods] > min_price[goods])
         {
+            price[goods] -= sensitivity * (+price[goods] - min_price[goods]);
         }
     }
     return;

@@ -7,7 +7,7 @@ int main()
     vector<int> generic_needs = {1, 1};
     vector<int> generic_priority = {0, 1};
     vector<float> generic_prices = {2.0, 2.0};
-    vector<int> generic_inventory = {0, 0};
+    vector<int> generic_inventory = {3, 3};
     vector<int> generic_security = {3, 3};
     int generic_money = 50;
     int generic_hunger = 2;
@@ -39,7 +39,7 @@ int main()
                 generic_sensitivity,
                 generic_productivity_rate,
                 generic_needs,
-                {3, 1},
+                {1, 1},
                 generic_priority,
                 generic_inventory,
                 generic_security));

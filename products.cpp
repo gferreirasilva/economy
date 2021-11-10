@@ -18,8 +18,8 @@ public:
     int result;
     int expiration_time;
     float people_factor;
-    // Initial refers to what may change in the future, setup is defined by nature
-    // and can't be changed.
+    // "Initial" is used to variables that may change and "setup"
+    // is defined on the initialization and can't be changed unless the human dies
     // What may or not be dynamic is defined on "economy.txt".
     product(
         vector<int> materials,
