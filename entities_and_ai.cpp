@@ -29,7 +29,7 @@ void init(int n, int g)
         goods_zero.pb(0);
     }
     demand = supply = goods_zero;
-    // default-job stuff
+    // default job stuff
     product new_job(goods_zero);
     default_job = new_job;
     products.clear();
@@ -58,9 +58,9 @@ public:
     vector<float> price, max_price, min_price;
     vector<bool> trade_sucess;
 
-    product job = default_job;
-    int life, starvation, hunger;
+    int life;
 
+    product job = default_job;
     int id, productivity, productivity_rate;
     int total_production;
     float money, sensitivity, income;
@@ -80,7 +80,6 @@ public:
         id = human_id;
         human_id++;
         money = initial_money;
-        starvation = hungry_limit;
         job = products[initial_job_id];
         productivity = job.base_production;
         sensitivity = initial_sensitivity;
@@ -160,9 +159,10 @@ public:
     }
     int donate(human asker, int grant)
     {
-        //To Dev
-        //Conditions to analyze: How much money do we have? How much money does the human have? What job does the human have?
-        //For now all requests to donate money are being accepted.
+        // To Dev
+        // Conditions to analyze: How much money do we have?
+        // How much money does the human have? What job does the human have?
+        // For now all requests to donate money are being accepted.
         if (money >= grant)
         {
             money -= grant;
@@ -197,9 +197,11 @@ state gov;
 
 void human::checkin()
 {
-
+    // Prices are updated in the morning, when they are going to be sold
+    update_prices();
     for (int q = 0; q < G; q++)
     {
+        trade_sucess[q] = false;
         dis[q] = inventory[q] - security[q];
 
         // Preparing log
@@ -217,11 +219,11 @@ void human::checkin()
 };
 void human::checkout()
 {
-    update_prices();
     for (int q = 0; q < G; q++)
     {
-        if (inventory[q] - needs[q] > starvation)
+        if (needs[q] > inventory[q])
         {
+
             request_aid(max_price[q]);
             if (max_price[q] <= money)
             {
@@ -229,7 +231,7 @@ void human::checkout()
             }
         }
 
-        if (-dis[q] > starvation)
+        if (needs[q] > inventory[q])
         {
             life = 0;
             alive--;
@@ -238,11 +240,9 @@ void human::checkout()
             money = 0;
             return;
         }
-        if (inventory[q] > 0)
+        if (inventory[q] > needs[q])
         {
-            int used = min(needs[q], inventory[q]);
-            inventory[q] -= used;
-            needs[q] -= used;
+            inventory[q] -= needs[q];
         }
     }
     total_money += money;
@@ -257,9 +257,9 @@ void human::production()
 
         for (int i = 0; i < G; i++)
         {
-            if (job.materials_needed[i] > inventory[i])
+            if (job.materials[i] > inventory[i])
             {
-                cout << inventory[i] << " " << job.materials_needed[i] << " alo? \n";
+                cout << inventory[i] << " " << job.materials[i] << " alo? \n";
                 total_production -= productivity;
                 return;
             }
@@ -290,78 +290,46 @@ void trade(int id_buyer, int id_seller, int quantity, int good)
     human buyer = humankind[id_buyer];
     human seller = humankind[id_seller];
     int dif = seller.price[good] - buyer.price[good];
-
-    //Adjusting min and max price of both seller and buyer.
-    seller.max_price[good] = max(seller.max_price[good], buyer.price[good]);
-    seller.min_price[good] = max(seller.min_price[good], buyer.price[good]);
-    buyer.max_price[good = max(buyer.max_price[good], seller.price[good])];
-    buyer.min_price[good] = max(buyer.min_price[good], seller.price[good]);
-
-    if (seller.dis[good] <= 0)
+    cout << buyer.price[good] << " and " << seller.price[good] << "\n";
+    if (seller.dis[good] < 0)
     {
-        // To Dev
-        // Change everything here to "adjust prices", which will happen at checkout
-        // when people decide if they got what they wanted or not, base on max an
-        // min prices they searched.
-
-        // Early interpretation of inflation and loss of consumption power.
-        // Maybe it happens when you don't produce it too?
-        if (seller.job.id == good)
-        {
-            if (seller.price[good] == 0)
-            {
-                seller.price[good] = 1;
-                // Make a better min price, based on price of production
-                // This "price of production" may be based on what he needs to survive
-            }
-            seller.price[good] += seller.price[good] * seller.sensitivity * 0.25;
-            // How much the price changes if the seller doesn't have enough
-            // money is totally arbitrary fow now.
-        }
-
-        humankind[id_seller] = seller;
+        // Seller doesn't have enough goods
         return;
     }
-    quantity = min(quantity, seller.dis[good]);
+    // Adjusting min and max price of both seller and buyer.
+    buyer.max_price[good] = max(buyer.max_price[good], seller.price[good]);
+    seller.max_price[good] = max(seller.max_price[good], buyer.price[good]);
 
+    buyer.min_price[good] = min(buyer.min_price[good], seller.price[good]);
+    seller.min_price[good] = min(seller.min_price[good], buyer.price[good]);
+
+    quantity = min(quantity, seller.dis[good]);
     int price = seller.price[good];
 
     if (price > buyer.price[good])
     {
 
-        if (-buyer.dis[good] >= buyer.starvation)
+        if (buyer.inventory[good] >= buyer.needs[good])
         {
-            // People very likely to buy something, at thatever the
-            // price currently is, are more likely to change their price
-            // when they are obglited to buy.
-            buyer.price[good] += dif * buyer.sensitivity * 0.5;
-        }
-
-        else
-        {
-            buyer.max_price[good] = max(buyer.max_price[good], seller.price[good]);
-            buyer.price[good] += dif * buyer.sensitivity;
-            seller.price[good] -= dif * buyer.sensitivity;
             humankind[id_buyer] = buyer;
             humankind[id_seller] = seller;
-
             return;
         }
     }
 
+    buyer.trade_sucess[good] = true;
+    seller.trade_sucess[good] = true;
+
     buyer.inventory[good] += quantity;
-    buyer.dis[good] += quantity;
-
     seller.inventory[good] -= quantity;
-    seller.dis[good] -= quantity;
 
-    demand[good] -= quantity;
-    supply[good] -= quantity;
+    buyer.dis[good] += quantity;
+    seller.dis[good] -= quantity;
 
     buyer.money -= price;
     seller.money += price;
 
-    total_exchanged += quantity * price;
+    total_exchanged += (quantity * price);
 
     humankind[id_buyer] = buyer;
     humankind[id_seller] = seller;
@@ -398,17 +366,17 @@ void human::seek_trade()
 }
 void human::update_prices()
 {
-    for (int goods = 0; goods < G; goods++)
+    cout << "For human " << id << ": \n";
+    for (int good = 0; good < G; good++)
     {
-        if (trade_sucess[goods])
+        int before = price[good];
+        if (trade_sucess[good] == true)
         {
-            price[goods] += sensitivity * (-price[goods] + max_price[goods]);
-            continue;
+            price[good] += sensitivity * (-price[good] + max_price[good]);
         }
-        if (price[goods] > min_price[goods])
-        {
-            price[goods] -= sensitivity * (+price[goods] - min_price[goods]);
-        }
+        price[good] -= sensitivity * (price[good] + min_price[good]);
+
+        cout << "Change in price of product " << good << " : " << price[good] - before << "\n";
     }
     return;
 }
