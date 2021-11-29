@@ -55,7 +55,8 @@ class human
 public:
     vector<int> needs, priority, inventory, dis, security;
 
-    vector<float> price, max_price, min_price;
+    vector<float> price, max_price, min_price, next_price;
+    vector<float> needs_cost;
     vector<bool> trade_sucess;
 
     int life;
@@ -63,6 +64,7 @@ public:
     product job = default_job;
     int id, productivity, productivity_rate;
     int total_production;
+    int last_production;
     float money, sensitivity, income;
 
     human(
@@ -82,7 +84,11 @@ public:
         money = initial_money;
         job = products[initial_job_id];
         productivity = job.base_production;
+
         sensitivity = initial_sensitivity;
+        sensitivity = max(float(0.01), sensitivity);
+        sensitivity = min(float(1), sensitivity);
+
         productivity_rate = initial_productivity_rate;
 
         for (int i = 0; i < G; i++)
@@ -93,6 +99,9 @@ public:
             price.pb(initial_prices[i]);
             max_price.pb(price[i]);
             min_price.pb(price[i]);
+            next_price.pb(price[i]);
+            needs_cost.pb(0);
+
             trade_sucess.pb(false);
 
             inventory.pb(initial_inventory[i]);
@@ -193,12 +202,13 @@ public:
     }
 };
 
-state gov;
+state brazil;
 
 void human::checkin()
 {
     // Prices are updated in the morning, when they are going to be sold
     update_prices();
+    last_production = 0;
     for (int q = 0; q < G; q++)
     {
         trade_sucess[q] = false;
@@ -209,6 +219,7 @@ void human::checkin()
         {
             demand[q] -= dis[q];
         }
+
         if (dis[q] > 0)
         {
             supply[q] += dis[q];
@@ -236,7 +247,7 @@ void human::checkout()
             life = 0;
             alive--;
             cout << id << " died\n";
-            gov.money += money;
+            brazil.money += money;
             money = 0;
             return;
         }
@@ -267,6 +278,7 @@ void human::production()
         total_production -= job.production_cost;
         inventory[job.id] += job.result;
         total_produced += price[job.id] * job.result;
+        last_production += job.result;
     }
 
     update_productivity();
@@ -275,9 +287,6 @@ void human::production()
 
 void human::update_productivity()
 {
-    // To Dev
-    // For now productivity growth is linear, but it's easy to implement logarithmic growth
-
     productivity += job.productivity_rate * job.base_production * productivity_rate;
     productivity = min(
         int(job.base_production * job.max_productivity),
@@ -289,13 +298,22 @@ void trade(int id_buyer, int id_seller, int quantity, int good)
 {
     human buyer = humankind[id_buyer];
     human seller = humankind[id_seller];
-    int dif = seller.price[good] - buyer.price[good];
-    cout << buyer.price[good] << " and " << seller.price[good] << "\n";
-    if (seller.dis[good] < 0)
-    {
-        // Seller doesn't have enough goods
-        return;
-    }
+    float price_dif = seller.price[good] - buyer.price[good];
+
+    // How much does this trade matter in the total value
+    // To Dev: Change to make it compare with traded inteasted of produced
+    // This will make trade value be more accurate
+    // Also, make the same for the buyer part, with how much he saw in
+    // the market last day, to make him change the price based on supply
+
+    // For now only seller is being implemented
+    // This min max will return a value from 0 to quantity
+    // Trade value represents how much it will be traded in comparisson to
+    // the seller production (which should be switched to traded as Dev states above).
+    int quantity_to_trade = min(max(seller.dis[good], 0), quantity);
+    int trade_value =
+        (quantity - min(max(seller.dis[good], 0), quantity) / seller.last_production) *
+        (seller.price[good] * seller.sensitivity);
     // Adjusting min and max price of both seller and buyer.
     buyer.max_price[good] = max(buyer.max_price[good], seller.price[good]);
     seller.max_price[good] = max(seller.max_price[good], buyer.price[good]);
@@ -303,20 +321,64 @@ void trade(int id_buyer, int id_seller, int quantity, int good)
     buyer.min_price[good] = min(buyer.min_price[good], seller.price[good]);
     seller.min_price[good] = min(seller.min_price[good], buyer.price[good]);
 
+    // Start to compare quantity and availability of the product by
+    // changing prices AND adjusting how much is traded.
+    if (seller.dis[good] < quantity && seller.dis[good] > 0)
+    {
+        // Buyer wants to buy more than Seller has.
+        // This will grow seller price proportionally, and the trade will occur
+        // with how much the seller has.
+
+        seller.next_price[good] +=
+            ((quantity - seller.dis[good]) / seller.last_production) *
+            (seller.price[good] * seller.sensitivity);
+        quantity = seller.dis[good];
+    }
+    if (seller.dis[good] <= 0)
+    {
+        // Seller doesn't have enough goods, thus trade will end, but
+        // not before he improves his price based on how much he made.
+        seller.next_price[good] +=
+            (quantity / seller.last_production) *
+            (seller.price[good] * seller.sensitivity);
+        quantity = seller.dis[good];
+        humankind[id_buyer] = buyer;
+        humankind[id_seller] = seller;
+        return;
+    }
     quantity = min(quantity, seller.dis[good]);
     int price = seller.price[good];
 
     if (price > buyer.price[good])
     {
-
         if (buyer.inventory[good] >= buyer.needs[good])
         {
+            // If the buyer refuses to buy, both next prices are changed
+            buyer.next_price[good] += price_dif * buyer.sensitivity;
+            seller.next_price[good] -= price_dif * seller.sensitivity;
             humankind[id_buyer] = buyer;
             humankind[id_seller] = seller;
+            cout << "They didn't trade\n";
+            cout << "Old values: " << buyer.price[good] << " ";
+            cout << seller.price[good] << "\n";
+            cout << "New values: " << buyer.next_price[good] << " ";
+            cout << seller.next_price[good] << "\n";
             return;
+        }
+        else
+        {
+            // If the buyer needs the product to survive, he tries to buy it anyway,
+            // changing their perception of how much it's valuable by a smaller amount.
+            buyer.next_price[good] += price_dif * buyer.sensitivity * 0.5;
+            humankind[id_buyer] = buyer;
+            humankind[id_seller] = seller;
         }
     }
 
+    cout << "They traded for the price " << price << "\n";
+    cout << "Buyer " << buyer.id << " price is " << buyer.price[good] << "\n";
+    cout << "Seller " << seller.id << " price is " << seller.price[good] << "\n";
+    buyer.next_price[good] += price_dif * buyer.sensitivity;
     buyer.trade_sucess[good] = true;
     seller.trade_sucess[good] = true;
 
@@ -339,7 +401,7 @@ void trade(int id_buyer, int id_seller, int quantity, int good)
 void human::seek_trade()
 {
     // Code defining when the AI will decide to buy
-    // different things. The human AI currently prioritizes
+    // price_different things. The human AI currently prioritizes
     // thing that are in a setup priority, and doesn't evaluete
     // if the priority makes sense or if it's benefical.
     // To Dev
@@ -366,24 +428,16 @@ void human::seek_trade()
 }
 void human::update_prices()
 {
-    cout << "For human " << id << ": \n";
     for (int good = 0; good < G; good++)
     {
-        int before = price[good];
-        if (trade_sucess[good] == true)
-        {
-            price[good] += sensitivity * (-price[good] + max_price[good]);
-        }
-        price[good] -= sensitivity * (price[good] + min_price[good]);
-
-        cout << "Change in price of product " << good << " : " << price[good] - before << "\n";
+        price[good] = next_price[good];
     }
     return;
 }
 
 void human::request_aid(int grant)
 {
-    int value = gov.donate(humankind[id], grant);
+    int value = brazil.donate(humankind[id], grant);
     money += value;
     return;
 }
