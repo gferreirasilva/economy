@@ -9,20 +9,22 @@ class product
 {
 public:
     int id;
+    vector<int> materials;
+
     int production_cost;
     int base_production;
     float productivity_rate;
     float max_productivity;
-    vector<int> materials_needed;
+
     int weight;
     int result;
     int expiration_time;
     float people_factor;
-    // Initial refers to what may change in the future, setup is defined by nature
-    // and can't be changed.
+    // "Initial" is used to variables that may change and "setup"
+    // is defined on the initialization and can't be changed unless the human dies
     // What may or not be dynamic is defined on "economy.txt".
     product(
-        vector<int> materials,
+        vector<int> setup_materials,
         int initial_production_cost = 100,
         int setup_base_production = 100,
         float setup_productivity_rate = 1,
@@ -32,9 +34,9 @@ public:
         int initial_expiration_time = -1,
         float setup_people_factor = 1)
     {
-        for (int i = 0; i < materials.size(); i++)
+        for (int i = 0; i < setup_materials.size(); i++)
         {
-            materials_needed.pb(materials[i]);
+            materials.pb(setup_materials[i]);
         }
         id = product_id;
         product_id++;
@@ -48,5 +50,4 @@ public:
         people_factor = setup_people_factor;
     }
 };
-
 vector<product> products;

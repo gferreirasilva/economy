@@ -6,11 +6,12 @@ int main()
 
     vector<int> generic_needs = {1, 1};
     vector<int> generic_priority = {0, 1};
-    vector<float> generic_prices = {2.0, 2.0};
-    vector<int> generic_inventory = {0, 0};
+    vector<float> generic_prices = {1.0, 1.0};
+    vector<int> generic_inventory = {3, 3};
+    vector<int> generic_security = {3, 3};
     int generic_money = 50;
     int generic_hunger = 2;
-    float generic_sensitivity = 0.5;
+    float generic_sensitivity = 0.25;
     float generic_productivity_rate = 1;
 
     //    int state_money = 10;
@@ -25,12 +26,12 @@ int main()
     for (int i = 0; i < setup_goods; i++)
     {
         products.pb(
-            product(goods_zero, 20, 20, 0.1, 2.0));
+            product(goods_zero, 20, 40, 0.1, 2.0));
     }
 
     for (int i = 0; i < setup_people; i++)
     {
-        human_kind.pb(
+        humankind.pb(
             human(
                 generic_money,
                 generic_hunger,
@@ -38,14 +39,16 @@ int main()
                 generic_sensitivity,
                 generic_productivity_rate,
                 generic_needs,
-                {3, 1},
+                {float(1.0 + i), float(1.0 + i)},
                 generic_priority,
-                generic_inventory));
+                generic_inventory,
+                generic_security));
     }
 
     int r = 1;
     int R = 4;
 
+    cout << "\n\n\nStart of simulation\n\n\n";
     while (R >= r)
     {
         cout << "Start of loop " << r << "\n";

@@ -29,7 +29,7 @@ void init(int n, int g)
         goods_zero.pb(0);
     }
     demand = supply = goods_zero;
-    // default-job stuff
+    // default job stuff
     product new_job(goods_zero);
     default_job = new_job;
     products.clear();
@@ -53,16 +53,18 @@ void reset()
 class human
 {
 public:
-    vector<int> needs, priority, inventory, dis;
-    vector<float> price;
-    vector<float> max_price;
+    vector<int> needs, priority, inventory, dis, security;
+
+    vector<float> price, max_price, min_price, next_price;
+    vector<float> needs_cost;
+    vector<bool> trade_sucess;
 
     int life;
-    int starvation;
 
     product job = default_job;
     int id, productivity, productivity_rate;
     int total_production;
+    int last_production;
     float money, sensitivity, income;
 
     human(
@@ -71,27 +73,40 @@ public:
         int initial_job_id,
         float initial_sensitivity,
         float initial_productivity_rate,
-        vector<int> setup_needs,
+        vector<int> initial_needs,
         vector<float> initial_prices,
         vector<int> setup_priority = goods_zero,
-        vector<int> initial_inventory = goods_zero)
+        vector<int> initial_inventory = goods_zero,
+        vector<int> initial_security = goods_zero)
     {
         id = human_id;
         human_id++;
         money = initial_money;
-        starvation = hungry_limit;
         job = products[initial_job_id];
         productivity = job.base_production;
+
         sensitivity = initial_sensitivity;
+        sensitivity = max(float(0.01), sensitivity);
+        sensitivity = min(float(1), sensitivity);
+
         productivity_rate = initial_productivity_rate;
 
         for (int i = 0; i < G; i++)
         {
-            needs.pb(setup_needs[i]);
+            needs.pb(initial_needs[i]);
             priority.pb(setup_priority[i]);
+
             price.pb(initial_prices[i]);
-            max_price.pb(initial_prices[i]);
+            max_price.pb(price[i]);
+            min_price.pb(price[i]);
+            next_price.pb(price[i]);
+            needs_cost.pb(0);
+
+            trade_sucess.pb(false);
+
             inventory.pb(initial_inventory[i]);
+            security.pb(max(initial_security[i], initial_needs[i]));
+            // Security has to be at least needs.
             dis.pb(0);
         }
         life = 1;
@@ -103,11 +118,12 @@ public:
     void seek_trade();
     void production();
     void update_productivity();
+    void update_prices();
     void change_job();
     void request_aid(int cash);
 };
 
-vector<human> human_kind;
+vector<human> humankind;
 
 class state
 {
@@ -116,7 +132,7 @@ public:
     int money;
     float fees;
 
-    state(int dinheiro, float taxas)
+    state(int dinheiro = 100, float taxas = 0)
     {
         money = dinheiro;
         fees = taxas;
@@ -128,20 +144,21 @@ public:
         int initial_money = money;
         for (int i = 0; i < N; i++)
         {
-            taxation = human_kind[i].money * fees;
+            taxation = humankind[i].money * fees;
             money += taxation;
-            human_kind[i].money -= taxation;
+            humankind[i].money -= taxation;
         }
         cout << money - initial_money << " was taxed";
         return;
     }
     void print_money(int cash)
     {
-        //To Dev
-        //Conditions to analyze: Will this money encourage productivityuction in valuable sectors of the economy?
-        //For now all requests for generating money are being accepted.
+        // To Dev
+        // Conditions to analyze: Will this money encourage productivity
+        // in valuable sectors of the economy?
+        // For now all requests for generating money are being accepted.
         money += cash;
-        //cout << "Printed " << cash << " money \n";
+        cout << "Printed " << cash << " money \n";
         return;
     }
     void buy()
@@ -151,15 +168,16 @@ public:
     }
     int donate(human asker, int grant)
     {
-        //To Dev
-        //Conditions to analyze: How much money do we have? How much money does the human have? What job does the human have?
-        //For now all requests to donate money are being accepted.
+        // To Dev
+        // Conditions to analyze: How much money do we have?
+        // How much money does the human have? What job does the human have?
+        // For now all requests to donate money are being accepted.
         if (money >= grant)
         {
             money -= grant;
             return grant;
         }
-        if (money <= grant)
+        if (money < grant)
         {
             //To Dev
             //Accordingly to the print_money() function, every time the state doesn't have enough money, it will just print more
@@ -184,21 +202,24 @@ public:
     }
 };
 
-state gov(0, 0);
+state brazil;
 
 void human::checkin()
 {
-    income = 0;
-    income += price[job.id] * productivity;
-
+    // Prices are updated in the morning, when they are going to be sold
+    update_prices();
+    last_production = 0;
     for (int q = 0; q < G; q++)
     {
-        dis[q] += inventory[q] - needs[q];
+        trade_sucess[q] = false;
+        dis[q] = inventory[q] - security[q];
 
-        if (dis[q] <= 0)
+        // Preparing log
+        if (dis[q] < 0)
         {
             demand[q] -= dis[q];
         }
+
         if (dis[q] > 0)
         {
             supply[q] += dis[q];
@@ -211,8 +232,9 @@ void human::checkout()
 {
     for (int q = 0; q < G; q++)
     {
-        if (-dis[q] > starvation)
+        if (needs[q] > inventory[q])
         {
+
             request_aid(max_price[q]);
             if (max_price[q] <= money)
             {
@@ -220,20 +242,18 @@ void human::checkout()
             }
         }
 
-        if (-dis[q] > starvation)
+        if (needs[q] > inventory[q])
         {
             life = 0;
             alive--;
             cout << id << " died\n";
-            gov.money += money;
+            brazil.money += money;
             money = 0;
             return;
         }
-        if (inventory[q] > 0)
+        if (inventory[q] > needs[q])
         {
-            int used = min(needs[q], inventory[q]);
-            inventory[q] -= used;
-            needs[q] -= used;
+            inventory[q] -= needs[q];
         }
     }
     total_money += money;
@@ -242,23 +262,23 @@ void human::checkout()
 
 void human::production()
 {
-
     total_production += productivity;
     while (total_production >= job.production_cost)
     {
 
         for (int i = 0; i < G; i++)
         {
-            if (job.materials_needed[i] > inventory[i])
+            if (job.materials[i] > inventory[i])
             {
-                cout << inventory[i] << " " << job.materials_needed[i] << " alooooo \n";
+                cout << inventory[i] << " " << job.materials[i] << " alo? \n";
                 total_production -= productivity;
                 return;
             }
         }
         total_production -= job.production_cost;
         inventory[job.id] += job.result;
-        total_produced += job.result;
+        total_produced += price[job.id] * job.result;
+        last_production += job.result;
     }
 
     update_productivity();
@@ -267,9 +287,6 @@ void human::production()
 
 void human::update_productivity()
 {
-    // To Dev
-    // For now productivity growth is linear, but it's easy to implement logarithmic growth
-
     productivity += job.productivity_rate * job.base_production * productivity_rate;
     productivity = min(
         int(job.base_production * job.max_productivity),
@@ -279,74 +296,112 @@ void human::update_productivity()
 
 void trade(int id_buyer, int id_seller, int quantity, int good)
 {
-    human buyer = human_kind[id_buyer];
-    human seller = human_kind[id_seller];
-    int dif = seller.price[good] - buyer.price[good];
+    human buyer = humankind[id_buyer];
+    human seller = humankind[id_seller];
+    float price_dif = seller.price[good] - buyer.price[good];
 
+    // How much does this trade matter in the total value
+    // To Dev: Change to make it compare with traded inteasted of produced
+    // This will make trade value be more accurate
+    // Also, make the same for the buyer part, with how much he saw in
+    // the market last day, to make him change the price based on supply
+
+    // For now only seller is being implemented
+    // This min max will return a value from 0 to quantity
+    // Trade value represents how much it will be traded in comparisson to
+    // the seller production (which should be switched to traded as Dev states above).
+    int quantity_to_trade = min(max(seller.dis[good], 0), quantity);
+    int trade_value =
+        (quantity - min(max(seller.dis[good], 0), quantity) / seller.last_production) *
+        (seller.price[good] * seller.sensitivity);
+    // Adjusting min and max price of both seller and buyer.
+    buyer.max_price[good] = max(buyer.max_price[good], seller.price[good]);
+    seller.max_price[good] = max(seller.max_price[good], buyer.price[good]);
+
+    buyer.min_price[good] = min(buyer.min_price[good], seller.price[good]);
+    seller.min_price[good] = min(seller.min_price[good], buyer.price[good]);
+
+    // Start to compare quantity and availability of the product by
+    // changing prices AND adjusting how much is traded.
+    if (seller.dis[good] < quantity && seller.dis[good] > 0)
+    {
+        // Buyer wants to buy more than Seller has.
+        // This will grow seller price proportionally, and the trade will occur
+        // with how much the seller has.
+
+        seller.next_price[good] +=
+            ((quantity - seller.dis[good]) / seller.last_production) *
+            (seller.price[good] * seller.sensitivity);
+        quantity = seller.dis[good];
+    }
     if (seller.dis[good] <= 0)
     {
-        //To Dev
-        //Early interpretation of inflation and loss of consumption power
-        //Maybe it happens when you don't productivityuce it too?
-        if (seller.job.id == good)
-        {
-            if (seller.price[good] == 0){
-                seller.price[good] = 1;
-                // Make a better min price, based on price of production
-                // This makes sense, as if a buyer can
-            }
-            seller.price[good] += seller.price[good] * seller.sensitivity * 0.25;
-            // How much it changes is totally arbitrary.
-            human_kind[id_seller] = seller;
-        }
+        // Seller doesn't have enough goods, thus trade will end, but
+        // not before he improves his price based on how much he made.
+        seller.next_price[good] +=
+            (quantity / seller.last_production) *
+            (seller.price[good] * seller.sensitivity);
+        quantity = seller.dis[good];
+        humankind[id_buyer] = buyer;
+        humankind[id_seller] = seller;
         return;
     }
     quantity = min(quantity, seller.dis[good]);
-
     int price = seller.price[good];
 
     if (price > buyer.price[good])
     {
-
-        if (-buyer.dis[good] >= buyer.starvation)
+        if (buyer.inventory[good] >= buyer.needs[good])
         {
-            // People very likely to buy something, at thatever the
-            // price currently is, are more likely to change their price
-            // when they are obglited to buy.
-            buyer.price[good] += dif * buyer.sensitivity * 0.5;
+            // If the buyer refuses to buy, both next prices are changed
+            buyer.next_price[good] += price_dif * buyer.sensitivity;
+            seller.next_price[good] -= price_dif * seller.sensitivity;
+            humankind[id_buyer] = buyer;
+            humankind[id_seller] = seller;
+            cout << "They didn't trade\n";
+            cout << "Old values: " << buyer.price[good] << " ";
+            cout << seller.price[good] << "\n";
+            cout << "New values: " << buyer.next_price[good] << " ";
+            cout << seller.next_price[good] << "\n";
+            return;
         }
-
         else
         {
-            buyer.max_price[good] = max(buyer.max_price[good], seller.price[good]);
-            buyer.price[good] += dif * buyer.sensitivity;
-            seller.price[good] -= dif * buyer.sensitivity;
-            human_kind[id_buyer] = buyer;
-            human_kind[id_seller] = seller;
-
-            return;
+            // If the buyer needs the product to survive, he tries to buy it anyway,
+            // changing their perception of how much it's valuable by a smaller amount.
+            buyer.next_price[good] += price_dif * buyer.sensitivity * 0.5;
+            humankind[id_buyer] = buyer;
+            humankind[id_seller] = seller;
         }
     }
 
+    cout << "They traded for the price " << price << "\n";
+    cout << "Buyer " << buyer.id << " price is " << buyer.price[good] << "\n";
+    cout << "Seller " << seller.id << " price is " << seller.price[good] << "\n";
+    buyer.next_price[good] += price_dif * buyer.sensitivity;
+    buyer.trade_sucess[good] = true;
+    seller.trade_sucess[good] = true;
+
     buyer.inventory[good] += quantity;
-    buyer.dis[good] += quantity;
     seller.inventory[good] -= quantity;
+
+    buyer.dis[good] += quantity;
     seller.dis[good] -= quantity;
 
     buyer.money -= price;
     seller.money += price;
 
-    total_exchanged += quantity * price;
+    total_exchanged += (quantity * price);
 
-    
-    human_kind[id_buyer] = buyer;
-    human_kind[id_seller] = seller;
+    humankind[id_buyer] = buyer;
+    humankind[id_seller] = seller;
+    return;
 };
 
 void human::seek_trade()
 {
     // Code defining when the AI will decide to buy
-    // different things. The human AI currently prioritizes
+    // price_different things. The human AI currently prioritizes
     // thing that are in a setup priority, and doesn't evaluete
     // if the priority makes sense or if it's benefical.
     // To Dev
@@ -356,25 +411,33 @@ void human::seek_trade()
     {
         int good = priority[item];
 
-        if (dis[good] > 0)
+        if (dis[good] >= 0)
         {
             continue;
         }
 
         for (int k = 0; k < N; k++)
         {
-            if (id == k || human_kind[k].life == 0)
+            if (id == k || humankind[k].life == 0)
             {
                 continue;
             }
-            trade(id, k, human_kind[k].dis[good], good);
+            trade(id, k, -dis[good], good);
         }
     }
+}
+void human::update_prices()
+{
+    for (int good = 0; good < G; good++)
+    {
+        price[good] = next_price[good];
+    }
+    return;
 }
 
 void human::request_aid(int grant)
 {
-    int value = gov.donate(human_kind[id], grant);
+    int value = brazil.donate(humankind[id], grant);
     money += value;
     return;
 }
@@ -407,42 +470,42 @@ void all(string identifier)
     {
         for (int i = 0; i < N; i++)
         {
-            if (human_kind[i].life == 1)
+            if (humankind[i].life == 1)
             {
-                human_kind[i].checkin();
+                humankind[i].checkin();
             }
         }
         return;
     }
     if (identifier == "checkout")
     {
-        for (int i = 0; i < N && human_kind[i].life == 1; i++)
+        for (int i = 0; i < N && humankind[i].life == 1; i++)
         {
-            if (human_kind[i].life == 1)
+            if (humankind[i].life == 1)
             {
-                human_kind[i].checkout();
+                humankind[i].checkout();
             }
         }
         return;
     }
     if (identifier == "production")
     {
-        for (int i = 0; i < N && human_kind[i].life == 1; i++)
+        for (int i = 0; i < N && humankind[i].life == 1; i++)
         {
-            if (human_kind[i].life == 1)
+            if (humankind[i].life == 1)
             {
-                human_kind[i].production();
+                humankind[i].production();
             }
         }
         return;
     }
     if (identifier == "seek_trade")
     {
-        for (int i = 0; i < N && human_kind[i].life == 1; i++)
+        for (int i = 0; i < N && humankind[i].life == 1; i++)
         {
-            if (human_kind[i].life == 1)
+            if (humankind[i].life == 1)
             {
-                human_kind[i].seek_trade();
+                humankind[i].seek_trade();
             }
         }
         return;
